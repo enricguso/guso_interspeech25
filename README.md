@@ -1,5 +1,5 @@
 # guso-interspeech25
-This software allow to reproduce our Interspeech 2025 submission.
+This software allows to reproduce our Interspeech 2025 submission.
 
 Feel free to reach out to any of the following authors if needed:
 
@@ -11,7 +11,7 @@ Feel free to reach out to any of the following authors if needed:
 
 ## Contents
 The repository is structured into several main components:
-* `generate_data.py`: the main script that transforms the `meta_ins25` into `.wav` impulse responses. Note that this won't run in a consumer-grade machine, we used an AWS instance with 300GB of memory.
+* `generate_data.py`: the main script that transforms the `meta_ins25` into `.wav` impulse responses. Note that this won't run in a consumer-grade machine, we used an AWS instance with 320GB of memory.
 * A SOFA file with 50-point pseudo-anechoic HRTFs of a KU100 dummy head wearing an audifon lewi R HA RIC device: `sofa_files/RIC_Front_Omni_128_noALFE_cut_now.sofa`
 * 10-th order Ambisonics to Binaural decoder for the SOFA file: `decoders_ord10/RIC_Front_Omni.mat`
 * [MASP](https://github.com/andresperezlopez/masp): an improved version of our own multichannel shoebox Room Impulse Response simulation library 
@@ -35,15 +35,11 @@ The results of the fitting are shown below:
 | 2kHz    | 4.12    | 0.09    |
 | 4kHz    | 2.49    | 0.18    |
 
-Sampling from these distributions approximates the real distributions:
+Sampling from these distributions approximates the real distributions.
 
-<img src="results/rt60s.png" alt="isolated" width="440"/>
 
 ## Source directivity
 Current SOTA ([OpenSLR26](http://www.openslr.org/26/) and [OpenSLR28](http://www.openslr.org/28/)) also ignores the fact that the human speech is not omnidirectional. If wall absorption is frequency-dependant, we may also consider which speech reflections will be louder in a frequency-dependant manner. We have used an existing model of human speech directivity from [here](https://scholarsarchive.byu.edu/directivity/1/), that can be found in `directivity_parsing_matlab`. Once correctly transformed to azimuth-elevation coordinates, we can plot the speech directivity at each frequency band. Note that for low frequencies speech is almost omnidirectional and that at high frequencies speech is highly directional towards the front and above the axis of propagation.
-
-<img src="figures/speech_dir.png" alt="isolated" width="440"/>
-
 
 ## Receiver directivity
 In order to simulate the signals we would get on a Hearing Aids device, we have measured a set of HRTFs of a KU100 dummy head wearing a pair of Audifon Lewi R devices. We measured the HRTF using the sweep method with a single Genelec 8020 loudspeaker following a 50-point Lebedev grid. We cropped the impulse responses before the arrival of the first wall reflection and low frequencies were extended by the [LFE algorithm](https://zenodo.org/records/3928297). You may find these HRTFs in SOFA format at `sofa_files`.
