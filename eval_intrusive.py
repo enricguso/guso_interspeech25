@@ -17,20 +17,18 @@ from speechmos import dnsmos
 from datetime import datetime
 from torchaudio.pipelines import SQUIM_OBJECTIVE, SQUIM_SUBJECTIVE
 import evaluation_metrics.calculate_intrusive_se_metrics as intru
-import evaluation_metrics.NISQA.nisqa.NISQA_lib as NL
+import NISQA.nisqa.NISQA_lib as NL
 from evaluation_metrics.nisqa_utils import load_nisqa_model
 from evaluation_metrics.nisqa_utils import predict_nisqa
-
 import evaluation_metrics.calculate_phoneme_similarity as phon
 from evaluation_metrics.calculate_phoneme_similarity import LevenshteinPhonemeSimilarity
-
 from espnet2.bin.spk_inference import Speech2Embedding
 import evaluation_metrics.calculate_speaker_similarity as spksim
 
 from discrete_speech_metrics import SpeechBERTScore
 import evaluation_metrics.calculate_speechbert_score as sbert
 
-import evaluation_metrics.calculate_wer as wer
+#import evaluation_metrics.calculate_wer as wer
 
 #HELPER FUCTIONS
 def rep_list(short, long):
@@ -82,7 +80,7 @@ def power(signal):
     
     
 class DFN_dataset(Dataset):
-    def __init__(self, speech_path, noise_path, rir_path, reverberant_noises):
+    def __init__(self, speech_path, noise_path, rir_path, n_samples):
         # Keep in mind that we should re-set the seeds if using any random process beneath
         # the gaussian noise generation for silent noise utterances
 
@@ -91,7 +89,6 @@ class DFN_dataset(Dataset):
         self.speech_path = speech_path
         self.noise_path = noise_path
         self.rir_path = rir_path
-        self.reverberant_noises = reverberant_noises
         
         # load speech wav paths from the textfile
         self.speech_paths = []
@@ -100,8 +97,11 @@ class DFN_dataset(Dataset):
             for line in lines:
                 self.speech_paths.append(line.rstrip()) 
         print('speech set loaded. contains '+str(len(self.speech_paths)) +' files.')
-        self.speech_paths = np.random.choice(self.speech_paths, 15000)
-        print('selecting 15000 files from that set')
+        np.random.seed(0)
+
+
+        self.speech_paths = np.random.choice(self.speech_paths, n_samples)
+        print('selecting '+str(n_samples)+' files from that set')
 
         '''
         errors = []
@@ -148,11 +148,11 @@ class DFN_dataset(Dataset):
         if speech_nrgy == 0:
             clean = load_audio(self.speech_paths[0])
 
-        noise = load_audio(self.noise_paths[int(idx % len(self.noise_paths))])
+        noise = load_audio(self.noise_paths[idx])
 
         # handle corrupt rir
         try:
-            rir = load_audio(self.rir_paths[int(idx % len(self.rir_paths))])
+            rir = load_audio(self.rir_paths[idx])
         except:
             rir = torch.zeros(FS)
             rir[300] = 1.
@@ -219,12 +219,6 @@ class DFN_dataset(Dataset):
         # enforce energy conservation
         revspeech *= np.sqrt(power(clean) / power(revspeech)) 
 
-        # apply RIR to noise too if needed
-        if self.reverberant_noises:
-            rnoise = sig.fftconvolve(noise, rir, 'full')
-            rnoise = rnoise[lag:FS*DURATION + lag]
-            rnoise *= np.sqrt(power(noise) / power(rnoise))
-            noise = rnoise
         noisy = revspeech + noise
         
         # check for Nans
@@ -234,27 +228,25 @@ class DFN_dataset(Dataset):
             print('clean nan')
         noisy = torch.from_numpy(noisy)
         clean = torch.from_numpy(clean)
-        meta = [self.speech_paths[idx], self.noise_paths[int(idx % len(self.noise_paths))], self.rir_paths[int(idx % len(self.rir_paths))], self.snrs[idx].item()]
+        meta = [self.speech_paths[idx], self.noise_paths[idx], self.rir_paths[idx], self.snrs[idx].item()]
         return noisy.float(), clean.float(), meta
 # dataset check
 if __name__ == '__main__':
     FS = 48000
     DURATION = 4 #time in seconds of the eval chunk
+    n_samples = 10000 #number of evaluation samples, originally 15000, 397 for rebuttal
 
     # names of the model folders (checkpoints/..) and aliases
     TRAINRIR_NAMES = {'D01_sb_none_NH_mono': 'singleband' , 'D02_mb_none_NH_mono': 'multiband', 
-                'D03_mb_rec_NH_left': 'recdirectivity'}#, 'D05_mb_srcrec_NH_left': 'recsourcedirectivity',
-                #'D00_DNS5': 'DNS5', 'D09_SSmp3d_left' : 'soundspaces'}
-
+                'D03_mb_rec_NH_left': 'recdirectivity', 'D05_mb_srcrec_NH_left': 'recsourcedirectivity',
+                'D00_DNS5': 'DNS5', 'D09_SSmp3d_left' : 'soundspaces'}
     use_gpu = True
     if torch.cuda.is_available() and use_gpu:
         TORCH_DEVICE = "cuda"
     else:
         TORCH_DEVICE = "cpu"
 
-    batch_size = 1
     num_workers = 8
-    reverberant_noises = True # we choose to maximize the effects of RIRs in this eval
     speech_path = '/home/ubuntu/Data/DFN/textfiles/readspeech_set.txt' #only read speech
     noise_path = '/home/ubuntu/Data/DFN/textfiles/test_set_noise.txt'
     dns_mos_path = '/home/ubuntu/enric/DNS-Challenge/DNSMOS/DNSMOS'
@@ -263,9 +255,9 @@ if __name__ == '__main__':
     #'/home/ubuntu/Data/DFN/textfiles/singleband_test_rir.txt',
     #'/home/ubuntu/Data/DFN/textfiles/recdirectivity_left_test_rir.txt',
     #'/home/ubuntu/Data/DFN/textfiles/recsourcedirectivity_left_test_rir.txt']
-    rir_path = '/home/ubuntu/enric/guso_interspeech24/real_rirs.txt'
+    rir_path = '/home/ubuntu/Data/DFN/textfiles/real_rirs.txt'
     model_names = list(TRAINRIR_NAMES.keys())
-    results_path = 'results_realRIRs'
+    results_path = 'results_waspaa'
 
     np.random.seed(0)
     torch.manual_seed(0)
@@ -293,7 +285,7 @@ if __name__ == '__main__':
     nmr_speech, _ = torchaudio.load(NMR_SPEECH)
     nmr_speech = nmr_speech.to(TORCH_DEVICE)
 
-    nisqa_model = load_nisqa_model('evaluation_metrics/NISQA/weights/nisqa.tar', 'cuda')
+    nisqa_model = load_nisqa_model('NISQA/weights/nisqa.tar', 'cuda')
     phon_model = LevenshteinPhonemeSimilarity(device='cuda')
     phon_model.phoneme_predictor.eval();
     spksim_model = Speech2Embedding.from_pretrained(
@@ -302,8 +294,8 @@ if __name__ == '__main__':
     sbs_model = SpeechBERTScore()
     sbs_model.model.eval();
 
-    dataset = DFN_dataset(speech_path, noise_path, rir_path, reverberant_noises) 
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, drop_last=True) 
+    dataset = DFN_dataset(speech_path, noise_path, rir_path, n_samples) 
+    dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=num_workers, drop_last=True) 
 
     for model_name in model_names: #for each model (or set of training RIRs)
         # initialize CSV file
@@ -360,7 +352,7 @@ if __name__ == '__main__':
             ds_noisy = downsampler(noisy)
 
             didx = len(df)
-            for i in range(batch_size): # this could be removed if we stick to batch size 1
+            for i in range(1): # this could be removed if we stick to batch size 1
                 df.loc[didx+i, 'train_rirs'] = TRAINRIR_NAMES[model_name]
                 df.loc[didx+i, 'eval_rirs'] = rir_path.split('/')[-1].split('_')[0]
                 df.loc[didx+i, 'model'] = model_name
@@ -514,7 +506,7 @@ if __name__ == '__main__':
             noisy = noisy.to(TORCH_DEVICE)
             clean = clean.to(TORCH_DEVICE)
             enhanced = enhanced.to(TORCH_DEVICE)
-            for i in range(batch_size):
+            for i in range(1):
                 try:
                     #SQUIM METRICS
                     stoi_hyp, pesq_hyp, si_sdr_hyp = objective_model(ds_enhanced)
@@ -582,5 +574,5 @@ if __name__ == '__main__':
                     df.loc[didx+i, 'stoi_n'] = np.NAN
                     df.loc[didx+i, 'stoi_i'] = np.NAN                   
 
-        df.to_csv(pjoin(results_path, model_name+'_evaluatedOn_'+rir_path.split('/')[-1].split('_')[0]+'.csv'), index=False)
+        df.to_csv(pjoin(results_path, model_name+'_evaluatedOn_'+rir_path.split('/')[-1].split('_')[0]+'_drynoise.csv'), index=False)
         print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+' || Done.')
