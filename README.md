@@ -1,4 +1,4 @@
-# guso-interspeech25
+# guso-waspaa25
 This software allows to reproduce our Waspaa 2025 submission.
 
 Feel free to reach out to any of the following authors if needed:
