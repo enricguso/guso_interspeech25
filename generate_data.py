@@ -38,26 +38,7 @@ def load_speechdirectivity(path, plot):
         plt.savefig('speech_directivity.pdf')
     return d
 
-def get_6band_rt60_vector():
-    # Check 'notebooks/RT60_analysis_AEC.ipynb' for more info
-    np.random.seed() #we randomize so multiprocessing doesn't yield same RT60s
-    alphas = np.array([1.7196874268124676,
-                         1.6152228672267106,
-                         1.9318203836226113,
-                         2.55718115999814,
-                         4.176814897493042,
-                         2.4892656080814346])
-    betas = np.array([0.38685390302225775,
-                         0.24453641709737417,
-                         0.14321372785643122,
-                         0.10453218827453133,
-                         0.08678871224845529,
-                         0.18290733668646034])
-    sim_rt60Fs = []
-    for i in range(len(alphas)):
-        sim_rt60Fs.append(np.random.gamma(alphas[i], betas[i], 1))
-    return np.array(sim_rt60Fs).squeeze()
-    
+
 def head_2_ku_ears(head_pos,head_orient):
 # based on head pos and orientation, compute coordinates of ears
     ear_distance_ku100=0.0875
@@ -268,12 +249,12 @@ def process(a):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(
-        description='Dataset Generation Argument Parser')
+        description='Dataset Generation Script.')
     parser.add_argument("--output", type=str,
-                    help="""Directory where to save processed wavs.""",
+                    help="""Directory where to save rendered wavs.""",
                     default=None)
     parser.add_argument('--workers', type=int, default=20, 
-                        help='Number of workers to be used (default is 20).')
+                        help='Number of scripts we will put to run in parallel in the same machine (default is 20).')
     parser.add_argument('--cpu', type=int, default=0, 
                         help='Which CPU are we running')
     
@@ -288,11 +269,11 @@ if __name__ == '__main__':
     for nb in range(5):
         band_centerfreqs[nb+1] = 2 * band_centerfreqs[nb]
 
-    decoder_path = pjoin('decoders_ord10', 'Ku100_ALFE_Window_sinEQ_bimag.mat') #10th order BimagLS decoder del KU100 sin HA a 48kHz
+    decoder_path = pjoin('decoders_ord10', 'Ku100_ALFE_Window_sinEQ_bimag.mat') #10th order BimagLS decoder 0f KU100 without HA at 48kHz
     decoder = mat73.loadmat(decoder_path)['hnm']
     decoder = np.roll(decoder,500,axis=0)
 
-    decoder_pathHA = pjoin('decoders_ord10', 'RIC_Front_Omni_ALFE_Window_SinEQ_bimag.mat') #10th order BimagLS decoder del HA Amplifon a 48kHz
+    decoder_pathHA = pjoin('decoders_ord10', 'RIC_Front_Omni_ALFE_Window_SinEQ_bimag.mat') #10th order BimagLS decoder with HA Amplifon at 48kHz
     decoderHA = mat73.loadmat(decoder_pathHA)['hnm']
     decoderHA = np.roll(decoder,500,axis=0)
 
@@ -300,10 +281,10 @@ if __name__ == '__main__':
     ambi_order = 10 # ambisonics order
     fs_rir = 48000
 
-    df_path = 'meta_ins25.csv'
+    df_path = 'meta_was25.csv'
     df = pd.read_csv(df_path)
     
-    print('RIR dataset generation script. Interspeech2025.')
+    print('RIR dataset generation script. Waspaa2025.')
 
     # we select the dataset subset for that specific CPU
     idx = int(args.cpu * len(df)/args.workers) 
