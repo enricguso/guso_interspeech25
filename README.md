@@ -10,17 +10,21 @@ Feel free to reach out to any of the following authors if needed:
 >Umut Sayin umut.sayin@eurecat.org
 
 ## Contents
-The repository is structured into several main components:
+The repository is structured into two main components:
 * `notebooks/dataset_design.ipynb`: in case you want to re-generate `meta_was25.csv`, the metadata with all the acoustic parameters of the 60.000 RIRs: room dimensions, T60s, source and receiver positions and orientations, etc.
 * `generate_data.py`: the main script that transforms the `meta_was25.csv` into `.wav` files impulse responses. Note that this won't run in a consumer-grade machine, we have used an AWS instance with 320GB of memory. Instead of using `multiprocessing`, we have split the RIRs to process with `--workers`and `--cpu` arguments and let the OS handle the resources, which means you should adjust both depending on your hadrware. For example, if your machine can handle 3 workers, you can run in parallel;
+
 `python generate_data.py --output <you_output_path> --workers 3 --cpu 0`
+
 `python generate_data.py --output <you_output_path> --workers 3 --cpu 1`
+
 `python generate_data.py --output <you_output_path> --workers 3 --cpu 2`
 
-Besides, we provide:
+Additionally , we provide:
+* A SOFA file with 50-point pseudo-anechoic HRTFs of a KU100 dummy head: `sofa_files/KU100_New_128_noALFE_cut_now.sofa`
 * A SOFA file with 50-point pseudo-anechoic HRTFs of a KU100 dummy head wearing an audifon lewi R HA RIC device: `sofa_files/RIC_Front_Omni_128_noALFE_cut_now.sofa`
-* 10-th order Ambisonics to Binaural decoder for the SOFA file: `decoders_ord10/RIC_Front_Omni.mat`
-* [MASP](https://github.com/andresperezlopez/masp): an improved version of our own multichannel shoebox Room Impulse Response simulation library 
+* 10-th order Ambisonics to Binaural decoders for both SOFA files: `decoders_ord10/RIC_Front_Omni.mat` and `decoders_ord10/Ku100_ALFE_Window_sinEQ_bimag.mat`
+* [MASP](https://github.com/andresperezlopez/masp): a multichannel shoebox Room Impulse Response simulation library 
 
 ## Installation
 
