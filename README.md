@@ -88,9 +88,11 @@ We have used [DNS5](https://github.com/microsoft/DNS-Challenge) speech and noise
 | noise | validation | 9.2GB |
 | noise | test |9.2GB |
 
-URLs can be found in the [DNS5](https://github.com/microsoft/DNS-Challenge) repo's `download-dns-challenge-4.sh`script. Once downloaded and extracted, list all the individual files and split 70% for training, 15% for validation and 15% for test. We have performed a room and speaker-based separation, making sure that there is no contamination between sets. This means that if a speaker or a room appears in the training set, it won't appear in the validation or test sets. We provide these text files in `rir_generator/textfiles`.
+URLs can be found in the [DNS5](https://github.com/microsoft/DNS-Challenge) repo's `download-dns-challenge-4.sh`script. Once downloaded and extracted, list all the individual files and split 70% for training, 15% for validation and 15% for test. We have performed a room and speaker-based separation, making sure that there is no contamination between sets. This means that if a speaker or a room appears in the training set, it won't appear in the validation or test sets.
 
-Finally, for each text file, encapsulate all the tracks into big HDF5 files by doing:
+You'll need to generate `.txt` files with the paths to speech noise and rirs for every training set, downloading all the real RIR datasets from `textfiles/real_rirs.txt`.
+
+Next, for each text file, encapsulate all the tracks into big HDF5 files by doing:
 ```
 cd DeepFilterNet
 
@@ -105,11 +107,13 @@ Repeat for validation and test sets. The output paths for each HDF5 file should 
 ## Train configuration
 
 Next, to train the DeepFilternet3 model with its default hyperparameters, the training script requires
-* a model directory that contains a config files such as `trained_model/config.ini`
+* a model directory that contains a config files such as `models/D00_DNS5/config.ini`
     * in this configuration file, we have modified `p_reverb`=1.0 to apply the HA RIRs to all the training utterances. The rest of hyperparameters are kept default.
     * in this folder, the checkpoints and summaries of the model will be saved
 * the `dconf.cfg` file that lists the HDF5 files and allow for sampling factors.
 * the actual data directory containing the nine HDF5 files we have described in `dconf.cfg`.
+
+We provide all model weights under `/models`.
 
 ## Evaluation
 Finally, to run the objective evaluation scripts, you should install the requirements from the [URGENT challenge](https://github.com/urgent-challenge/urgent2024_challenge/). Then adjust the paths to DNSMOS models and test set speech, noise and RIRS in 
